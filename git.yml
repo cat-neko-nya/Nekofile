@@ -1,0 +1,28 @@
+version: 3
+
+env:
+  GIT_REMOTE_URL: git@github.com:cat-neko-nya/2021quals.git
+
+tasks:
+  git-init:
+    desc: 初期化
+    cmds:
+      - cd $(PROJECT_ROOT)
+      - git init
+      - git remote add origin $(GIT_REMOTE_URL)
+      - git add -A
+      - git commit -m "init"
+      - git push -u origin main
+
+  pull-force:
+    desc: fetchしてorigin/mainにリセット
+    cmds:
+      - cd $(PROJECT_ROOT)
+      - git fetch --all
+      - git reset --hard origin/main
+
+  bench-failed:
+    desc: ベンチ失敗時コミット
+    cmds:
+      - git commit --allow-empty -m "bench (failed) :x:"
+      - git push

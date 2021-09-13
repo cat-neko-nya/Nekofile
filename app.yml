@@ -1,0 +1,69 @@
+version: 3
+
+env:
+  GO111MODULE: on
+  BUILD_DIR: /home/isucon/webapp/go
+  BIN_NAME: isucondition
+  LDFLAGS:
+  SERVICE_NAME: isucondition.go
+  API_SERVICE_NAME:
+
+tasks:
+  clean:
+    desc: 成果物の削除
+    dir: "{{.BUILD_DIR}}"
+    cmds:
+      - rm -rf $(BIN_NAME)
+    sources:
+    generates:
+
+  deps:
+    desc: 依存のダウンロード
+    dir: "{{.BUILD_DIR}}"
+    cmds:
+      - go mod download
+    sources:
+    generates:
+
+  build:
+    desc: ビルド
+    dir: "{{.BUILD_DIR}}"
+    cmds:
+      - go build $(LDFLAGS)
+
+  restart:
+    desc: アプリ再起動
+    cmds:
+      - sudo systemctl restart $(SERVICE_NAME).service
+
+  restart-api:
+    desc: API再起動
+    cmds:
+      - sudo systemctl restart $(API_SERVICE_NAME).service
+
+  dev:
+    desc: systemdを使わずにそのまま実行
+    deps: [build]
+    cmds:
+      - cd $(BUILD_DIR)
+      - ./$(BIN_NAME)
+
+  log:
+    desc: systemctlのログを表示
+    cmds:
+      - sudo journalctl -u $(SERVICE_NAME) -n10 -f
+
+  llog:
+    desc: systemctlのログを表示 (full)
+    cmds:
+      - sudo journalctl -u $(SERVICE_NAME) -e
+
+  log-api:
+    desc: systemctlのログを表示
+    cmds:
+      - sudo journalctl -u $(API_SERVICE_NAME) -n10 -f
+
+  llog-api:
+    desc: systemctlのログを表示 (full)
+    cmds:
+      - sudo journalctl -u $(API_SERVICE_NAME) -e

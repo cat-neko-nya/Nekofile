@@ -1,0 +1,23 @@
+version: 3
+
+env:
+  # git init したディレクトリ
+  PROJECT_ROOT: /home/isucon/webapp
+
+dotenv:
+  - .env.example
+
+includes:
+  app: ./app.yml
+  bench: ./bench.yml
+  db: ./db.yml
+  discord: ./discord.yml
+  git: ./git.yml
+  nginx: ./nginx.yml
+  util: ./util.yml
+
+tasks:
+  default:
+    desc: neko
+    cmds:
+      - echo Nyan

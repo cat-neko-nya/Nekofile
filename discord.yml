@@ -1,0 +1,34 @@
+version: 3
+
+env:
+  DISCORDCAT: /usr/local/bin/discord.sh
+
+tasks:
+  neko:
+    desc: にゃーん
+    cmds:
+      - $(DISCORDTEXT) "にゃーん"
+
+  # 内部共通化用
+  post:
+    cmds:
+      - $(DISCORDCAT) --text {{.MESSAGE}}
+  post-file:
+    cmds:
+      - $(DISCORDCAT) --file {{.FILE_PATH}}
+
+  text:
+    desc: メッセージ投稿 [メッセージ]
+    cmds:
+      - task: post
+        vars: { MESSAGE: "{{.CLI_ARGS}}" }
+
+  code:
+    desc: コードブロック投稿 [コード]
+    cmds:
+      - echo {{.CLI_ARGS}} | perl -pe 's/\n/\\n/g' | $(DISCORDCAT) --text "$$(RESULTS=$$(cat -); echo -e $${RESULTS:0:1900} | echo "\`\`\`$$(cat -)\`\`\`" | jq -Rs . | cut -c 2- | rev | cut -c 2- | rev)"
+
+  file:
+    desc: ファイル投稿 [ファイル名]
+    cmds:
+      - $(DISCORDCAT) --file {{.CLI_ARGS}}

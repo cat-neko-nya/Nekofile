@@ -1,0 +1,75 @@
+version: 3
+
+tasks:
+  before:
+    cmds:
+      - $(eval when := $(shell date "+%s"))
+      - mkdir -p ~/logs/$(when)
+      # TODO: 
+      # - @if [ -f $(NGX_LOG) ]; then \
+          # sudo mv -f $(NGX_LOG) ~/logs/$(when)/ ; \
+      #   fi
+      # - @if [ -f $(MYSQL_LOG) ]; then \
+          # sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/ ; \
+      #   fi
+      - task: :db:restart
+      - task: :nginx:restart
+
+  bench-dev:
+    desc: 実行して準備 (下の行はmysqlなしの場合)
+    bench-dev:
+      # bench-dev: echo-bench pull-force before slow-on initialize-mysql-schema dev
+      cmds:
+        - task: echo-bench
+        - task: :git:pull-force 
+        - task: before 
+        - task: slow-on 
+        - task: :db:initialize-schema
+        - task: :app:dev
+
+  bench:
+    desc: ベンチの準備 (下の行はmysqlなしの場合)
+    # bench: echo-bench pull-force before slow-on initialize-mysql-schema build restart log
+    cmds:
+      - echo-bench pull-force before initialize-mysql-schema build restart log
+
+  bench-local:
+    desc: ベンチの準備 (pull-force せずにその時点のコードを反映) (下の行はmysqlなしの場合)
+    cmds:
+      # bench-local: echo-bench before slow-on initialize-mysql-schema build restart log
+      - echo-bench before initialize-mysql-schema build restart log
+
+  bench-top:
+    desc: ベンチの準備 (logの代わりにtop) (下の行はmysqlなしの場合)
+    cmds:
+      # bench-top: echo-bench pull-force before slow-on initialize-mysql-schema build restart top
+      - echo-bench pull-force before initialize-mysql-schema build restart top
+
+  bench-fin:
+    desc: 最終ベンチ (ログの無効) (下の行はmysqlなしの場合)
+    # bench-fin: echo-bench pull-force before slow-off initialize-mysql-schema build restart
+    cmds:
+      - echo-bench pull-force before initialize-mysql-schema build restart
+
+  bench-no-log:
+    desc: ログ出力はなしでベンチの準備
+    cmds:
+      - echo-bench pull-force before build restart
+
+  echo:
+    desc: Discordでベンチ開始を宣言します
+    cmds:
+      - task: :discord:post
+        vars: { MESSAGE: ":bangbang: benchを投げますにゃ" }
+
+  score:
+    desc: スコアのコミットとDiscordへの投稿
+    cmds:
+      - cd $(PROJECT_ROOT)
+      - git add .
+      - echo
+      - 'echo -n "score?: "'
+      - read score
+      - $(DISCORDTEXT) ":white_check_mark: $$score 点が出ましたにゃ\`\`\`$$(git rev-parse HEAD | cut -c -7)($$(git name-rev --name-only HEAD))\n$$(git log --format=%B --max-count=1 HEAD)\`\`\`"
+      - git commit --allow-empty -m "bench (score: $$score) :white_check_mark:"
+      - git push

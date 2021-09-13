@@ -1,0 +1,22 @@
+version: 3
+
+env:
+  NGX_LOG: /var/log/nginx/access.log
+  NGX_PATH: /etc/nginx
+
+  # TODO: ミドルウェアまとめる？
+  ENVOY_LOG: /var/log/envoy/access.log
+
+tasks:
+  restart:
+    desc: Nginx再起動
+    cmds: 
+      - sudo systemctl restart nginx.service
+
+  nginx-conf:
+    desc: Nginxの設定ファイルを取り込み
+    cmds:
+      - sudo cp -r ${NGX_PATH}/ ./config
+      - sudo chmod -R 755 ./config/nginx
+      - sudo rm -rf ${NGX_PATH}
+      - sudo ln -s ${PROJECT_ROOT}/config/nginx ${NGX_PATH}
