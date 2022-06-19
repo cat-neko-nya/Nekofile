@@ -8,13 +8,13 @@ dotenv:
   - .env.example
 
 includes:
-  app: ./app.yml
-  bench: ./bench.yml
-  db: ./db.yml
-  discord: ./discord.yml
-  git: ./git.yml
-  nginx: ./nginx.yml
-  util: ./util.yml
+  app: ./taskfiles/app.yml
+  bench: ./taskfiles/bench.yml
+  db: ./taskfiles/db.yml
+  discord: ./taskfiles/discord.yml
+  git: ./taskfiles/git.yml
+  nginx: ./taskfiles/nginx.yml
+  util: ./taskfiles/util.yml
 
 tasks:
   default:
