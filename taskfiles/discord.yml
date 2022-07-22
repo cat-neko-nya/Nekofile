@@ -1,21 +1,20 @@
 version: 3
 
-env:
-  DISCORDCAT: /usr/local/bin/discord.sh
+# env:
 
 tasks:
   neko:
     desc: にゃーん
     cmds:
-      - $(DISCORDTEXT) "にゃーん"
+      - $DISCORDCAT --text "にゃーん"
 
   # 内部共通化用
   post:
     cmds:
-      - $(DISCORDCAT) --text {{.MESSAGE}}
+      - $DISCORDCAT --text {{shellQuote .MESSAGE}}
   post-file:
     cmds:
-      - $(DISCORDCAT) --file {{.FILE_PATH}}
+      - $DISCORDCAT --file {{.FILE_PATH}}
 
   text:
     desc: メッセージ投稿 [メッセージ]
@@ -26,9 +25,14 @@ tasks:
   code:
     desc: コードブロック投稿 [コード]
     cmds:
-      - echo {{.CLI_ARGS}} | perl -pe 's/\n/\\n/g' | $(DISCORDCAT) --text "$$(RESULTS=$$(cat -); echo -e $${RESULTS:0:1900} | echo "\`\`\`$$(cat -)\`\`\`" | jq -Rs . | cut -c 2- | rev | cut -c 2- | rev)"
+      - task: post
+        vars:
+          MESSAGE:
+            # Discord の文字数上限 (2000文字) に引っかからないようにトリムする & 改行が入っている場合に内部の jq がエラーになるので回避
+            sh: 'echo "\`\`\`{{ trunc 1900 .CODE }}\`\`\`" | jq -Rs . | cut -c 2- | rev | cut -c 2- | rev'
 
   file:
     desc: ファイル投稿 [ファイル名]
     cmds:
-      - $(DISCORDCAT) --file {{.CLI_ARGS}}
+      - task: post-file
+        vars: { FILE_PATH: "{{.CLI_ARGS}}" }

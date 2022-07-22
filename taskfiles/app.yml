@@ -1,19 +1,13 @@
 version: 3
 
-env:
-  GO111MODULE: on
-  BUILD_DIR: /home/isucon/webapp/go
-  BIN_NAME: isucondition
-  LDFLAGS:
-  SERVICE_NAME: isucondition.go
-  API_SERVICE_NAME:
+# env:
 
 tasks:
   clean:
     desc: 成果物の削除
     dir: "{{.BUILD_DIR}}"
     cmds:
-      - rm -rf $(BIN_NAME)
+      - rm -rf $BIN_NAME
     sources:
     generates:
 
@@ -22,48 +16,58 @@ tasks:
     dir: "{{.BUILD_DIR}}"
     cmds:
       - go mod download
-    sources:
     generates:
 
   build:
     desc: ビルド
+    deps: [deps]
     dir: "{{.BUILD_DIR}}"
     cmds:
-      - go build $(LDFLAGS)
+      - go build $LDFLAGS -o $BIN_NAME
 
   restart:
     desc: アプリ再起動
     cmds:
-      - sudo systemctl restart $(SERVICE_NAME).service
+      - sudo systemctl restart $SERVICE_NAME.service
+
+  stop:
+    desc: アプリ停止
+    cmds:
+      - sudo systemctl stop $SERVICE_NAME.service
 
   restart-api:
     desc: API再起動
     cmds:
-      - sudo systemctl restart $(API_SERVICE_NAME).service
+      - sudo systemctl restart $API_SERVICE_NAME.service
 
   dev:
     desc: systemdを使わずにそのまま実行
     deps: [build]
     cmds:
-      - cd $(BUILD_DIR)
-      - ./$(BIN_NAME)
+      - cd $BUILD_DIR
+      - ./$BIN_NAME
+
+  status:
+    desc: systemctlのステータスを表示
+    cmds:
+      - sudo systemctl status $SERVICE_NAME.service
 
   log:
     desc: systemctlのログを表示
     cmds:
-      - sudo journalctl -u $(SERVICE_NAME) -n10 -f
+      - sudo journalctl -u $SERVICE_NAME -n10 -f
 
   llog:
     desc: systemctlのログを表示 (full)
     cmds:
-      - sudo journalctl -u $(SERVICE_NAME) -e
+      - sudo journalctl -u $SERVICE_NAME -e
 
   log-api:
     desc: systemctlのログを表示
     cmds:
-      - sudo journalctl -u $(API_SERVICE_NAME) -n10 -f
+      - sudo journalctl -u $API_SERVICE_NAME -n10 -f
 
   llog-api:
     desc: systemctlのログを表示 (full)
     cmds:
-      - sudo journalctl -u $(API_SERVICE_NAME) -e
+      - sudo journalctl -u $API_SERVICE_NAME -e

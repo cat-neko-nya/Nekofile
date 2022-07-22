@@ -1,0 +1,52 @@
+version: 3
+
+env:
+
+tasks:
+  default:
+    desc: DBで遅いクエリ, nginxへの遅いリクエストを出力
+    cmds:
+      - task: :db:slow
+      - task: kataru
+
+  kataru:
+    desc: kataribe のログを Discord に投げる
+    cmds:
+      - sudo cat $NGX_LOG | kataribe -f ./kataribe.toml > /tmp/kataribe.log
+      - task: :discord:code
+        vars:
+          CODE:
+            sh: 'cat /tmp/kataribe.log | grep -nE "TOP [0-9]+ Slow Requests" | cut -f1 -d: | expr $(cat -) - 1 | sed "1,$(cat -)d" /tmp/kataribe.log'
+      - task: :discord:post-file
+        vars: { FILE_PATH: "/tmp/kataribe.log" }
+
+  alp:
+    desc: alp の分析結果を Discord に投げる
+    cmds:
+      - sudo alp ltsv --file=$NGX_LOG -m /new_items/[0-9]+.json,/items/[0-9]+.json,/transactions/[0-9]+.png,/users/[0-9]+.json --dump /tmp/alp.log --pos /tmp/alp.pos
+      - task: :discord:code
+        vars:
+          CODE:
+            sh: alp json --load /tmp/alp.log --sort=avg -r -o count,method,uri,avg  | head -n 20
+      - task: :discord:code
+        vars:
+          CODE:
+            sh: alp json --load /tmp/alp.log --sort=count -r -o count,method,uri,avg  | head -n 20
+      - task: :discord:code
+        vars:
+          CODE:
+            sh: alp json --load /tmp/alp.log --sort=sum -r -o count,method,uri,sum  | head -n 20
+
+  myprofiler:
+    # TODO:
+    - myprofiler -user=$(DB_USER) -password=$(DB_PASSWORD)
+
+  pprof:
+    - $PPROF_CMD $PPROF_PATH
+    - task: :discord:post-file
+      vars: { FILE_PATH: /tmp/pprof.png }
+
+  pprof-bench:
+    - $PPROF_CMD $PPROF_PATH_BENCH
+    - task: :discord:post-file
+      vars: { FILE_PATH: /tmp/pprof.png }

@@ -1,0 +1,15 @@
+version: 3
+
+tasks:
+  start: 
+    desc: netdataの開始 
+    cmds:
+      - sudo systemctl start netdata
+  stop: 
+    desc: netdataの停止 
+    cmds:
+      - sudo systemctl stop netdata
+  restart: 
+    desc: netdataのリスタート 
+    cmds:
+      - sudo systemctl restart netdata

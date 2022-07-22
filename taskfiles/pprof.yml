@@ -1,0 +1,36 @@
+version: 3
+
+# env:
+
+tasks:
+  pprof:
+    desc: pprof を実行
+    cmds:
+      - $PPROF_CMD $PPROF_PATH
+      - task: :discord:post-file
+        vars: { FILE_PATH: /tmp/pprof.png }
+
+  bench:
+    - $PPROF_CMD $PPROF_PATH_BENCH
+    - task: :discord:post-file
+      vars: { FILE_PATH: /tmp/pprof.png }
+
+  web:
+    desc: 最新の結果を web UI で表示
+    cmds:
+      - echo $PPROF_PATH
+      - go tool pprof -http=localhost:1234 {{.PROF_FILE}}
+    vars:
+      PROF_FILE:
+        sh: ls ~/pprof/*.pb.gz -1r 2>&1 | head -n 1
+
+  diff:
+    desc: 最新と1つ前の結果の diff を web UI で表示
+    cmds:
+      - echo $PPROF_PATH
+      - go tool pprof -http=localhost:1234 -diff_base={{.DIFF_BASE}} {{.PROF_FILE}}
+    vars:
+      PROF_FILE:
+        sh: ls ~/pprof/*.pb.gz -1r 2>&1 | head -n 1
+      DIFF_BASE:
+        sh: ls ~/pprof/*.pb.gz -1r 2>&1 | head -n 2 | tail -n 1

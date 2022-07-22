@@ -3,58 +3,91 @@ version: 3
 tasks:
   before:
     cmds:
-      - $(eval when := $(shell date "+%s"))
-      - mkdir -p ~/logs/$(when)
-      # TODO: 
-      # - @if [ -f $(NGX_LOG) ]; then \
-          # sudo mv -f $(NGX_LOG) ~/logs/$(when)/ ; \
-      #   fi
-      # - @if [ -f $(MYSQL_LOG) ]; then \
-          # sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/ ; \
-      #   fi
+      - "mkdir -p {{.DIR}}"
+      - cmd: "sudo mv -f $NGX_LOG {{.DIR}}"
+        ignore_error: true # $NGX_LOG が存在しない場合は無視
+      - cmd: "sudo mv -f $MYSQL_LOG {{.DIR}}"
+        ignore_error: true # $MYSQL_LOG が存在しない場合は無視
       - task: :db:restart
       - task: :nginx:restart
+    vars:
+      DIR: "~/logs/{{now | unixEpoch}}"
 
-  bench-dev:
+  dev:
     desc: 実行して準備 (下の行はmysqlなしの場合)
-    bench-dev:
-      # bench-dev: echo-bench pull-force before slow-on initialize-mysql-schema dev
-      cmds:
-        - task: echo-bench
-        - task: :git:pull-force 
-        - task: before 
-        - task: slow-on 
-        - task: :db:initialize-schema
-        - task: :app:dev
+    cmds:
+      - task: :bench:echo
+      - task: :git:pull-force
+      - task: before
+      - task: :db:slow-on
+      - task: :db:initialize-schema
+      - task: :app:dev
 
   bench:
     desc: ベンチの準備 (下の行はmysqlなしの場合)
-    # bench: echo-bench pull-force before slow-on initialize-mysql-schema build restart log
     cmds:
-      - echo-bench pull-force before initialize-mysql-schema build restart log
+      - task: :bench:echo
+      - task: :git:pull-force
+      - task: before
+      - task: :db:slow-on
+      - task: :db:initialize-schema
+      - task: :app:build
+      - task: :app:restart
+      - task: :app:log
 
-  bench-local:
+  local:
     desc: ベンチの準備 (pull-force せずにその時点のコードを反映) (下の行はmysqlなしの場合)
     cmds:
-      # bench-local: echo-bench before slow-on initialize-mysql-schema build restart log
-      - echo-bench before initialize-mysql-schema build restart log
+      - task: :bench:echo
+      - task: before
+      - task: :db:slow-on
+      - task: :db:initialize-schema
+      - task: :app:build
+      - task: :app:restart
+      - task: :app:log
 
-  bench-top:
+  top:
     desc: ベンチの準備 (logの代わりにtop) (下の行はmysqlなしの場合)
     cmds:
-      # bench-top: echo-bench pull-force before slow-on initialize-mysql-schema build restart top
-      - echo-bench pull-force before initialize-mysql-schema build restart top
+      - task: :bench:echo
+      - task: :git:pull-force
+      - task: before
+      - task: :db:slow-on
+      - task: :db:initialize-schema
+      - task: :app:build
+      - task: :app:restart
+      - top
 
-  bench-fin:
-    desc: 最終ベンチ (ログの無効) (下の行はmysqlなしの場合)
-    # bench-fin: echo-bench pull-force before slow-off initialize-mysql-schema build restart
+  with-pprof:
+    desc: ベンチの準備 (pprof を使いたい場合)
     cmds:
-      - echo-bench pull-force before initialize-mysql-schema build restart
+      - task: :bench:echo
+      - task: before
+      - task: :db:slow-on
+      - task: :db:initialize-schema
+      - task: :app:run-with-pprof
 
-  bench-no-log:
+  fin:
+    desc: 最終ベンチ (ログの無効) (下の行はmysqlなしの場合)
+    cmds:
+      - task: :bench:echo
+      - task: :git:pull-force
+      - task: before
+      - task: :db:slow-off
+      - task: :netdata:stop
+        ignore_error: true # netdataをアンインストールしている場合は無視
+      - task: :db:initialize-schema
+      - task: :app:build
+      - task: :app:restart
+
+  no-log:
     desc: ログ出力はなしでベンチの準備
     cmds:
-      - echo-bench pull-force before build restart
+      - task: :bench:echo
+      - task: :git:pull-force
+      - task: before
+      - task: :app:build
+      - task: :app:restart
 
   echo:
     desc: Discordでベンチ開始を宣言します
@@ -63,13 +96,24 @@ tasks:
         vars: { MESSAGE: ":bangbang: benchを投げますにゃ" }
 
   score:
-    desc: スコアのコミットとDiscordへの投稿
+    desc: スコアのコミットとDiscordへの投稿 [スコア]
     cmds:
-      - cd $(PROJECT_ROOT)
+      - cd $PROJECT_ROOT
       - git add .
-      - echo
-      - 'echo -n "score?: "'
-      - read score
-      - $(DISCORDTEXT) ":white_check_mark: $$score 点が出ましたにゃ\`\`\`$$(git rev-parse HEAD | cut -c -7)($$(git name-rev --name-only HEAD))\n$$(git log --format=%B --max-count=1 HEAD)\`\`\`"
-      - git commit --allow-empty -m "bench (score: $$score) :white_check_mark:"
+      - task: :discord:post
+        vars: {
+          MESSAGE:
+          ":white_check_mark: {{.SCORE}} 点が出ましたにゃ
+          ```{{trunc 7 .GIT_COMMIT}}({{.GIT_BRANCH}})
+          {{trim .GIT_COMMENT}}```"
+        }
+      - 'git commit --allow-empty -m "bench (score: {{.SCORE}}) :white_check_mark:"'
       - git push
+    vars:
+      SCORE: "{{atoi .CLI_ARGS}}"
+      GIT_COMMIT:
+        sh: git rev-parse HEAD
+      GIT_BRANCH:
+        sh: git name-rev --name-only HEAD
+      GIT_COMMENT:
+        sh: git log --format=%B --max-count=1 HEAD

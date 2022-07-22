@@ -1,20 +1,12 @@
 version: 3
 
-env:
-  DB_HOST: 127.0.0.1
-  DB_PORT: 3306
-  DB_USER: isucon
-  DB_PASS: isucon
-  DB_NAME: isucondition
-
-  # MySQL
-  MYSQL_LOG: /tmp/slow-query.log
+# env:
 
 tasks:
   msql:
     desc: MySQL
     cmds:
-      - mysql -h$(DB_HOST) -P$(DB_PORT) -u$(DB_USER) -p$(DB_PASS) $(DB_NAME)
+      - mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASS $DB_NAME
 
   restart:
     desc: MySQL再起動
@@ -24,7 +16,7 @@ tasks:
   initialize-schema:
     desc: MYSQLスキーマ初期化
     cmds:
-      - $(MYSQL_CMD) < $(PROJECT_ROOT)/sql/schema.sql
+      - $PROJECT_ROOT/webapp/sql/init.sh
 
   disable-redolog:
     desc: MySQL(^8.0.21) Redoログ無効化
@@ -34,11 +26,12 @@ tasks:
   slow:
     desc: pt-query-digest の結果をDiscordに投げる
     cmds:
-      - sudo pt-query-digest $(MYSQL_LOG) > /tmp/query-digest.log
-      - $(DISCORDFILE) /tmp/query-digest.log
+      - sudo pt-query-digest $MYSQL_LOG > /tmp/query-digest.log
+      - task: :discord:post-file
+        vars: { FILE_PATH: /tmp/query-digest.log }
 
   slow-on:
-    - sudo mysql -e "set global slow_query_log_file = '$(MYSQL_LOG)'; set global long_query_time = 0; set global slow_query_log = ON;"
+    - sudo mysql -e "set global slow_query_log_file = '$MYSQL_LOG'; set global long_query_time = 0; set global slow_query_log = ON;"
 
   slow-off:
     - sudo mysql -e "set global slow_query_log = OFF;"

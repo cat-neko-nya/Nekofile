@@ -1,101 +1,14 @@
 version: 3
 
-env:
-  KATARU_CFG: ./kataribe.toml
-  PPROF_CMD: go tool pprof -png -output /tmp/pprof.png
-  PPROF_PATH: http://localhost:6060/debug/pprof/profile
-  PPROF_PATH_BENCH: http://localhost:6061/debug/pprof/profile
+# env:
 
 tasks:
-  setup:
-    cmds:
-      # TODO: 分離する
-      - sudo apt install -y percona-toolkit dstat git unzip snapd jq graphviz
-      # kataribe
-      - wget https://github.com/matsuu/kataribe/releases/download/v0.4.1/kataribe-v0.4.1_linux_amd64.zip -O kataribe.zip
-      - unzip -o kataribe.zip
-      - sudo mv kataribe /usr/local/bin/
-      - sudo chmod +x /usr/local/bin/kataribe
-      - rm LICENSE README.md kataribe.zip
-      - kataribe -generate
-      # alp
-      - wget https://github.com/tkuchiki/alp/releases/download/v1.0.7/alp_linux_amd64.zip -O alp.zip
-      - unzip -o alp.zip
-      - sudo mv alp /usr/local/bin/
-      - sudo chmod +x /usr/local/bin/alp
-      - rm alp.zip
-      # myprofiler
-      - wget https://github.com/KLab/myprofiler/releases/download/0.2/myprofiler.linux_amd64.tar.gz
-      - tar xf myprofiler.linux_amd64.tar.gz
-      - rm myprofiler.linux_amd64.tar.gz
-      - sudo mv myprofiler /usr/local/bin/
-      - sudo chmod +x /usr/local/bin/myprofiler
-      # discord
-      - wget https://raw.githubusercontent.com/ChaoticWeg/discord.sh/master/discord.sh
-      - chmod +x discord.sh
-      - sudo mv discord.sh /usr/local/bin/
-      # kill apparmor
-      - sudo systemctl stop apparmor
-      - sudo apt-get purge -y apparmor
-      # config files
-      - wget https://raw.githubusercontent.com/cat-neko-nya/ISUCON-setup/master/.bashrc_
-      - wget https://raw.githubusercontent.com/cat-neko-nya/ISUCON-setup/master/.inputrc
-      - wget https://raw.githubusercontent.com/cat-neko-nya/ISUCON-setup/master/.gitconfig
-      - wget https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh -O .git-prompt.sh
-      - mv .inputrc .bashrc_ .gitconfig .git-prompt.sh ~/
-      - echo "[ -f ~/.bashrc ] && source ~/.bashrc" >> ~/.bash_profile
-      - echo "[ -f ~/.bashrc_ ] && source ~/.bashrc_" >> ~/.bash_profile
-
-  analyze:
-    desc: DBで遅いクエリ, nginxへの遅いリクエストを出力
-    cmds:
-      - task: :db:slow
-      - task: kataru
-
-  kataru:
-    desc: kataribe のログをDiscordに投げる
-    cmds:
-      - sudo cat $(NGX_LOG) | kataribe -f ./kataribe.toml > /tmp/kataribe.log
-      - 'cat /tmp/kataribe.log | grep -nE "TOP [0-9]+ Slow Requests" | cut -f1 -d: | expr $$(cat -) - 1 | sed "1,$$(cat -)d" /tmp/kataribe.log | $(DISCORDCODE)'
-      - task: :discord:post-file
-        vars: { FILE_PATH: "/tmp/kataribe.log" }
-
-  alp:
-    cmds:
-      # TODO:
-      - alp ltsv --file=$(ENVOY_LOG) -m /api/admin/clarifications/[0-9]+,/api/admin/clarifications/[0-9]+,/api/contestant/benchmark_jobs/[0-9]+ --dump /tmp/dump.log --pos /tmp/alp.pos
-      - alp json --load /tmp/dump.log --sort=avg -r -o count,method,uri,avg  | head -n 20 | ${DISCORDCODE}
-      - alp json --load /tmp/dump.log --sort=count -r -o count,method,uri,avg  | head -n 20 | ${DISCORDCODE}
-      - alp json --load /tmp/dump.log --sort=sum -r -o count,method,uri,sum  | head -n 20 | ${DISCORDCODE}
-
-  myprofiler:
-    # TODO:
-    - myprofiler -user=$(DB_USER) -password=$(DB_PASSWORD)
-
-  pprof:
-    # TODO:
-    - $(PPROF_CMD) $(PPROF_PATH)
-    - $(DISCORDFILE) /tmp/pprof.png
-
-  pprof-bench:
-    # TODO:
-    - $(PPROF_CMD) $(PPROF_PATH_BENCH)
-    - $(DISCORDFILE) /tmp/pprof.png
-
   deploy-git-hooks:
     cmds:
-      - ln -s ${PROJECT_ROOT}/post-checkout .git/hooks/post-checkout
+      - ln -s $PROJECT_ROOT/post-checkout .git/hooks/post-checkout
       - chmod +x ./post-checkout
 
   test-localhost:
     desc: localhostのHTTPレスポンスを表示
     cmds:
       - curl localhost -o /dev/null -s -w "%{http_code}\n"
-
-  install-netdata:
-    - bash <(curl -Ss https://my-netdata.io/kickstart.sh)
-
-  uninstall-netdata:
-    - wget https://raw.githubusercontent.com/netdata/netdata/master/packaging/installer/netdata-uninstaller.sh
-    - sudo chmod +x ./netdata-uninstaller.sh
-    - ./netdata-uninstaller.sh --yes --env /etc/netdata/.environment
