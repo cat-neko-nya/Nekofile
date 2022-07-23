@@ -15,6 +15,7 @@ includes:
   git: ./taskfiles/git.yml
   nginx: ./taskfiles/nginx.yml
   util: ./taskfiles/util.yml
+  setup: ./taskfiles/setup.yml
 
 tasks:
   default:
